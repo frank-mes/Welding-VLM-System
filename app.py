@@ -2,50 +2,70 @@ import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 
-# 1. 页面基础配置
-st.set_page_config(page_title="焊接多模态专家系统", layout="wide")
+# 1. 基础配置
+st.set_page_config(page_title="Welding VLM", layout="wide")
 
-# 2. 数据库连接初始化
+# 2. 数据库连接
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception:
-    st.error("数据库链接异常，请检查 Secrets 配置")
+    st.error("DB Connection Error")
 
-# 3. 核心推演引擎 (基于专家知识库)
-def get_welding_logic(mat, thick, meth, grade):
-    # --- 基础规则配置 ---
-    base_i_map = {"Q345R": 110, "316L": 95, "S30408": 100}
-    meth_f_map = {"GMAW": 1.0, "GTAW": 0.8, "LBW": 1.5}
+# 3. 计算引擎
+def get_logic(mat, thick, meth, grade):
+    # 专家参数
+    bm = {"Q345R": 110, "316L": 95, "S30408": 100}
+    mf = {"GMAW": 1.0, "GTAW": 0.8, "LBW": 1.5}
     
-    # --- 电流 (I) 推导过程 ---
-    i_b = base_i_map.get(mat, 100)
-    i_t = thick * 12
-    m_f = meth_f_map.get(meth, 1.0)
-    g_m = 0.95 if grade == "一级" else 1.0
-    i_res = (i_b + i_t) * m_f * g_m
+    ib = bm.get(mat, 100)
+    it = thick * 12
+    fac = mf.get(meth, 1.0)
+    mod = 0.95 if grade == "一级" else 1.0
     
-    # --- 电压 (U) 推导过程 ---
-    v_c = 18 if grade == "一级" else 16
-    v_r = 40 if grade == "一级" else 45
-    u_res = v_c + (i_res / v_r)
+    # 核心推演
+    ires = (ib + it) * fac * mod
+    ures = (18 + ires/40) if grade == "一级" else (16 + ires/45)
+    vres = 200 + (thick * 8)
     
-    # --- 速度 (V) 推导过程 ---
-    v_res = 200 + (thick * 8)
+    # 合格率预测
+    conf_base = {"一级": 98.0, "二级": 95.0, "三级": 92.0}
+    conf_res = conf_base.get(grade, 90.0) - (thick * 0.1)
     
-    # --- 合格率预测模型 (Confidence) ---
-    base_conf = {"一级": 0.98, "二级": 0.95, "三级": 0.92}
-    conf = base_conf.get(grade, 0.90) - (thick * 0.001)
+    # 算式字符串
+    calc_i = f"({ib} + {it}) * {fac} * {mod}"
+    calc_u = f"Base + ({round(ires,1)} / K)"
     
-    # 封装计算路径文本
-    return {
-        "i_exp": f"({i_b} + {i_t}) * {m_f} * {g_m}",
-        "u_exp": f"{v_c} + ({round(i_res,1)} / {v_r})",
-        "v_exp": f"200 + ({thick} * 8)",
-        "i_val": round(i_res, 1),
-        "u_val": round(u_res, 1),
-        "v_val": round(v_res, 1),
-        "conf": round(conf * 100, 1)
-    }
+    return ires, ures, vres, conf_res, calc_i, calc_u
 
-# 4. 侧边栏：工艺特征输入层
-st.sidebar.header("🛠
+# 4. 侧边栏输入 (变量名重构, 移除Emoji)
+st.sidebar.header("Input Parameters")
+v_mat = st.sidebar.selectbox("Material", ["Q345R", "316L", "S30408"])
+v_thick = st.sidebar.slider("Thickness(mm)", 2.0, 50.0, 10.0)
+v_meth = st.sidebar.selectbox("Method", ["GMAW", "GTAW", "LBW"])
+v_grade = st.sidebar.radio("Grade", ["一级", "二级", "三级"])
+
+# 5. 主页面标题
+st.title("Welding Expert System (VLM Optimized)")
+
+# 宏观逻辑展示 (使用 LaTeX 避免字符串截断报错)
+with st.expander("Macro Logic Description", expanded=False):
+    st.latex(r"I = (I_{base} + 12 \cdot h) \cdot \eta \cdot \delta")
+    st.latex(r"U = U_{c} + I / k")
+    st.write("Current compensates heat loss; Voltage maintains arc.")
+
+st.markdown("---")
+
+# 6. 计算
+iv, uv, vv, cv, exp_i, exp_u = get_logic(v_mat, v_thick, v_meth, v_grade)
+
+# 7. 实例推理路径
+st.subheader("Process Traceability")
+t1, t2, t3 = st.columns(3)
+
+up_f = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+v_d = 5.0 if up_f else 0.0
+f_i = round(iv + v_d, 1)
+
+with t1:
+    st.info("Current (I) Path")
+    st
