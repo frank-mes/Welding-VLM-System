@@ -170,3 +170,4 @@ if st.checkbox("🔍 查看云端历史同步记录"):
         st.dataframe(hist_data[h_list].tail(15), use_container_width=True)
     except Exception as e:
         st.info("无法读取历史记录或工作表为空。")
+        
