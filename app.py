@@ -79,5 +79,50 @@ st.subheader("🔄 质量反馈与数据闭环 (RLHF)")
 target_cols = ["Timestamp", "Material", "Thickness", "Method", "Grade", "VLM_Feedback", "Pred_Current", "Pred_Voltage", "Pred_Speed", "Actual_Result", "Expert_Score"]
 
 with st.expander("📝 录入实测反馈记录", expanded=True):
-    fb_col1, fb_col
+    # 修复此处的变量截断问题
+    fb_col1, fb_col2 = st.columns(2)
+    actual_res = fb_col1.selectbox("检测结果", ["合格", "气孔", "未熔合", "咬边", "裂纹"])
+    expert_score = fb_col2.slider("专家打分", 0, 100, 85)
     
+    if st.button("🚀 提交并同步云端", use_container_width=True):
+        new_row = {
+            "Timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Material": material_type,
+            "Thickness": thickness,
+            "Method": method,
+            "Grade": grade,
+            "VLM_Feedback": vlm_analysis,
+            "Pred_Current": curr,
+            "Pred_Voltage": volt,
+            "Pred_Speed": spd,
+            "Actual_Result": actual_res,
+            "Expert_Score": expert_score
+        }
+        
+        try:
+            url = st.secrets["gsheets_url"]
+            try:
+                # 强制刷新读取旧数据
+                existing_df = conn.read(spreadsheet=url, ttl=0)
+            except:
+                existing_df = pd.DataFrame(columns=target_cols)
+            
+            # 创建并对齐新行
+            new_df = pd.DataFrame([new_row])[target_cols]
+            # 追加数据
+            updated_df = pd.concat([existing_df, new_df], ignore_index=True)
+            updated_df = updated_df.reindex(columns=target_cols)
+            
+            conn.update(spreadsheet=url, data=updated_df)
+            st.success(f"✅ 同步成功！当前数据库行数: {len(updated_df)}")
+            st.balloons()
+        except Exception as e:
+            st.error(f"同步异常: {e}")
+
+# 8. 数据预览
+if st.checkbox("显示云端最近 5 条记录"):
+    try:
+        data_view = conn.read(spreadsheet=st.secrets["gsheets_url"], ttl=0)
+        st.dataframe(data_view.reindex(columns=target_cols).tail(5), use_container_width=True)
+    except:
+        st.write("暂无记录")
