@@ -2,6 +2,31 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+from library.streamlit_gsheets import GSheetsConnection # 需要安装插件
+
+# 1. 初始化连接
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+# 2. 在反馈按钮点击后的逻辑
+if st.button("提交反馈"):
+    # 构建当前行数据
+    new_data = pd.DataFrame([{
+        "Timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Material": material_type,
+        "Thickness": thickness,
+        "Method": method,
+        "Actual_Result": actual,
+        "Expert_Score": expert_score # 假设你定义了此变量
+    }])
+    
+    # 获取旧数据并合并（或者直接追加）
+    existing_data = conn.read(spreadsheet=st.secrets["gsheets_url"])
+    updated_df = pd.concat([existing_data, new_data], ignore_index=True)
+    
+    # 写回 Google Sheets
+    conn.update(spreadsheet=st.secrets["gsheets_url"], data=updated_df)
+    st.success("✅ 数据已同步至云端 Google 表格！")
+    
 # 1. 页面配置
 st.set_page_config(page_title="焊接工艺参数优化系统", layout="wide")
 
