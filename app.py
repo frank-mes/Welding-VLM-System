@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-from library.streamlit_gsheets import GSheetsConnection # 需要安装插件
+from streamlit_gsheets import GSheetsConnection # 需要安装插件
 
 # 1. 初始化连接
 conn = st.connection("gsheets", type=GSheetsConnection)
