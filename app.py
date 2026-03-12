@@ -32,9 +32,9 @@ def get_inference_details(mat, thick, meth, grade):
     # --- 速度推理 (V) ---
     spd_final = 200 + (thick * 8)
     
-    # 封装计算过程
-    trace = {
+    # 封装计算过程 (修复了引号问题)
+    return {
         "i_calc": f"({i_base} + {i_thick}) * {m_factor} * {g_mod}",
         "u_calc": f"{v_const} + ({round(curr_final,1)} / {v_ratio})",
-        "v_calc": f"200 + ({thick} * 8)",
-        "i_res
+        "v_calc": f"200
+    
