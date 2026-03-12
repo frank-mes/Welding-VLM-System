@@ -70,3 +70,38 @@ c4.metric("预测合格率", f"{conf*100:.0f}%")
 
 # 8. 反馈闭环 (RLHF) - 注意这一块的引号闭合
 st.markdown("---")
+st.subheader("🔄 生产-反馈闭环 (RLHF)")
+
+with st.expander("点击展开：录入反馈记录"):
+    fb_col1, fb_col2 = st.columns(2)
+    actual_res = fb_col1.selectbox("检测结果", ["合格", "气孔", "未熔合", "咬边"])
+    expert_score = fb_col2.slider("打分", 0, 100, 85)
+    
+    if st.button("同步至云端"):
+        new_data = {
+            "Timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Material": material_type,
+            "Thickness": thickness,
+            "Method": method,
+            "Grade": grade,
+            "VLM_Feedback": vlm_analysis,
+            "Actual_Result": actual_res,
+            "Expert_Score": expert_score
+        }
+        
+        try:
+            url = st.secrets["gsheets_url"]
+            df = conn.read(spreadsheet=url)
+            updated_df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+            conn.update(spreadsheet=url, data=updated_df)
+            st.success("✅ 数据已同步至表格！")
+            st.balloons()
+        except Exception as error:
+            st.error(f"Error: {error}")
+
+# 9. 数据预览
+if st.checkbox("查看最近5条记录"):
+    try:
+        st.dataframe(conn.read(spreadsheet=st.secrets["gsheets_url"]).tail(5))
+    except:
+        st.write("暂无记录")
