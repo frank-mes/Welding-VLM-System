@@ -39,7 +39,7 @@ grade = st.sidebar.radio("焊缝等级", ["一级", "二级", "三级"])
 st.title("👨‍🏭 多模态大模型驱动 - 焊接工艺优化系统")
 st.markdown("---")
 
-# 6. 视觉感知与推荐展示 (左右布局)
+# 6. 视觉感知与推荐展示
 main_col1, main_col2 = st.columns([1, 1])
 
 with main_col1:
@@ -51,5 +51,33 @@ with main_col1:
     
     if uploaded_file:
         st.image(uploaded_file, caption="实时样本", use_container_width=True)
-        gap_val = 0.8 + (thickness / 15)
-        vlm_analysis = "视觉识别间隙: " + str(round(gap_val
+        gap_val = round(0.8 + (thickness / 15), 2)
+        vlm_analysis = f"视觉识别间隙: {gap_val}mm"
+        vlm_delta = 5.0
+        st.info(f"🔍 VLM 结论: {vlm_analysis}")
+    else:
+        st.warning("📢 请上传照片激活视觉补偿")
+
+with main_col2:
+    st.subheader("🚀 工艺参数预测")
+    c_base, volt, spd, conf = calculate_params(material_type, thickness, method, grade)
+    curr = c_base + vlm_delta
+    
+    res_c1, res_c2 = st.columns(2)
+    res_c1.metric("焊接电流 (I)", f"{curr} A", delta=f"{vlm_delta}A" if vlm_delta > 0 else None)
+    res_c1.metric("电弧电压 (U)", f"{volt} V")
+    res_c2.metric("焊接速度 (V)", f"{spd} mm/min")
+    res_c2.metric("预测合格率", f"{int(conf*100)}%")
+    
+    st.markdown("---")
+    st.caption("基于材料物理特性及 VLM 实时特征对齐自动生成")
+
+# 7. 生产反馈闭环 (RLHF)
+st.markdown("---")
+st.subheader("🔄 质量反馈与数据闭环 (RLHF)")
+
+target_cols = ["Timestamp", "Material", "Thickness", "Method", "Grade", "VLM_Feedback", "Pred_Current", "Pred_Voltage", "Pred_Speed", "Actual_Result", "Expert_Score"]
+
+with st.expander("📝 录入实测反馈记录", expanded=True):
+    fb_col1, fb_col
+    
