@@ -11,30 +11,55 @@ try:
 except Exception:
     st.error("数据库连接初始化失败")
 
-# 3. 专家推理引擎 (全参数透明化)
+# 3. 专家推理引擎 (逻辑加固版)
 def get_inference_details(mat, thick, meth, grade):
     # 专家知识库基准
     base_i_map = {"Q345R": 110, "316L": 95, "S30408": 100}
     meth_f_map = {"GMAW": 1.0, "GTAW": 0.8, "LBW": 1.5}
     
-    # --- 电流推理 (I) ---
-    i_base = base_i_map.get(mat, 100)
-    i_thick = thick * 12
-    m_factor = meth_f_map.get(meth, 1.0)
-    g_mod = 0.95 if grade == "一级" else 1.0
-    curr_final = (i_base + i_thick) * m_factor * g_mod
+    # 计算电流 (I)
+    i_b = base_i_map.get(mat, 100)
+    i_t = thick * 12
+    m_f = meth_f_map.get(meth, 1.0)
+    g_m = 0.95 if grade == "一级" else 1.0
     
-    # --- 电压推理 (U) ---
-    v_const = 18 if grade == "一级" else 16
-    v_ratio = 40 if grade == "一级" else 45
-    volt_final = v_const + (curr_final / v_ratio)
+    curr_f = (i_b + i_t) * m_f * g_m
     
-    # --- 速度推理 (V) ---
-    spd_final = 200 + (thick * 8)
+    # 计算电压 (U)
+    v_c = 18 if grade == "一级" else 16
+    v_r = 40 if grade == "一级" else 45
+    volt_f = v_c + (curr_f / v_r)
     
-    # 封装计算过程 (修复了引号问题)
+    # 计算速度 (V)
+    spd_f = 200 + (thick * 8)
+    
+    # 构造展示用的算式字符串 (分段构造防止截断)
+    i_str = f"({i_b} + {i_t}) * {m_f} * {g_m}"
+    u_str = f"{v_c} + ({round(curr_f, 1)} / {v_r})"
+    v_str = f"200 + ({thick} * 8)"
+    
     return {
-        "i_calc": f"({i_base} + {i_thick}) * {m_factor} * {g_mod}",
-        "u_calc": f"{v_const} + ({round(curr_final,1)} / {v_ratio})",
-        "v_calc": f"200
+        "i_calc": i_str,
+        "u_calc": u_str,
+        "v_calc": v_str,
+        "i_res": round(curr_f, 1),
+        "u_res": round(volt_f, 1),
+        "v_res": round(spd_f, 1)
+    }
+
+# 4. 侧边栏输入
+st.sidebar.header("🛠 输入特征")
+in_mat = st.sidebar.selectbox("材料牌号", ["Q345R", "316L", "S30408"])
+in_thick = st.sidebar.slider("板材厚度 (mm)", 2.0, 50.0, 10.0)
+in_meth = st.sidebar.selectbox("焊接方法", ["GMAW", "GTAW", "LBW"])
+in_grade = st.sidebar.radio("质量等级", ["一级", "二级", "三级"])
+
+# 5. 主页面标题
+st.title("👨‍🏭 焊接工艺多模态优化系统")
+
+# 宏观逻辑说明
+with st.expander("📘 查看宏观专家知识逻辑", expanded=False):
+    st.markdown("""
+    **推理原则说明：**
+    1. **热输入模型**：电流
     
